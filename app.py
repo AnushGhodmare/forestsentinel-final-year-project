@@ -219,6 +219,14 @@ def init_db():
         )
     """)
 
+    # Simple key/value store for settings edited from the dashboard (e.g. the Telegram message)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """)
+
     conn.commit()
 
     cur.execute("SELECT COUNT(*) as count FROM cameras")
@@ -1294,17 +1302,128 @@ def _telegram_on_cooldown(cur, camera_id, species, now):
     return cur.fetchone() is not None
 
 
-def _build_telegram_message(decision, species, location, now):
-    """Plain safety notice for residents (not the officials' technical detail)."""
-    lines = [
-        "WILDLIFE ALERT",
-        f"{species.replace('_', ' ').title()} detected at {location}.",
-    ]
-    if decision.get("resident_note"):
-        lines.append(decision["resident_note"])
-    lines.append("Please stay alert: avoid the area, keep children and livestock indoors, and do not approach the animal.")
-    lines.append(f"Time: {now.strftime('%d %b %Y, %I:%M %p')}")
-    return "\n".join(lines)
+# ---- Custom Telegram message (editable in Settings -> Telegram Alert Message) ----
+DEFAULT_TELEGRAM_TEMPLATE = (
+    "WILDLIFE ALERT\n"
+    "{species} detected at {location}.\n"
+    "{note}\n"
+    "Please stay alert: avoid the area, keep children and livestock indoors, and do not approach the animal.\n"
+    "Time: {date}, {time}"
+)
+TELEGRAM_PLACEHOLDERS = {
+    "species":  "Animal detected, e.g. Tiger",
+    "location": "Camera location name",
+    "zone":     "Zone, e.g. Village Edge",
+    "date":     "Date, e.g. 16 Oct 2026",
+    "time":     "Time, e.g. 09:42 PM",
+    "note":     "Extra detail from the engine (e.g. repeat sightings). Blank if none",
+    "title":    "Decision title, e.g. Human-Wildlife Conflict Risk",
+    "action":   "Recommended action from the decision engine",
+}
+TELEGRAM_TEMPLATE_MAX = 1500
+
+
+def get_setting(key, default=None):
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    finally:
+        conn.close()
+    return row["value"] if row else default
+
+
+def set_setting(key, value):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO app_settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_setting(key):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM app_settings WHERE key = ?", (key,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def render_telegram_template(template, values):
+    """Fills {placeholders}. Unknown ones are left as typed so typos are easy to
+    spot in the preview. A line that held only placeholders which came out empty
+    (e.g. {note} with no note) is dropped instead of leaving a blank line."""
+    pattern = re.compile(r"\{(\w+)\}")
+    out = []
+    for line in template.splitlines():
+        had_placeholder = bool(pattern.search(line))
+        rendered = pattern.sub(lambda m: str(values.get(m.group(1), m.group(0))), line)
+        if had_placeholder and not rendered.strip():
+            continue
+        out.append(rendered)
+    return "\n".join(out).strip()
+
+
+def _build_telegram_message(decision, species, location, now, zone=""):
+    """Safety notice for residents. Uses the custom template from Settings if one
+    is saved, otherwise the default wording."""
+    template = get_setting("telegram_template") or DEFAULT_TELEGRAM_TEMPLATE
+    values = {
+        "species": species.replace("_", " ").title(),
+        "location": location,
+        "zone": ZONE_PHRASES.get(zone, zone or ""),
+        "date": now.strftime("%d %b %Y"),
+        "time": now.strftime("%I:%M %p"),
+        "note": decision.get("resident_note") or "",
+        "title": decision.get("title") or "",
+        "action": decision.get("action") or "",
+    }
+    return render_telegram_template(template, values)
+
+
+class TelegramTemplate(BaseModel):
+    template: str = ""
+
+
+@app.get("/settings/telegram")
+def get_telegram_settings(current_user: str = Depends(get_current_user)):
+    saved = get_setting("telegram_template")
+    return {
+        "template": saved or DEFAULT_TELEGRAM_TEMPLATE,
+        "is_default": not saved,
+        "default_template": DEFAULT_TELEGRAM_TEMPLATE,
+        "placeholders": TELEGRAM_PLACEHOLDERS,
+        "max_length": TELEGRAM_TEMPLATE_MAX,
+    }
+
+
+@app.put("/settings/telegram")
+def save_telegram_settings(body: TelegramTemplate, current_user: str = Depends(get_current_user)):
+    text = body.template.strip()
+    if len(text) > TELEGRAM_TEMPLATE_MAX:
+        raise HTTPException(status_code=400, detail=f"Message is too long (max {TELEGRAM_TEMPLATE_MAX} characters).")
+    if not text or text == DEFAULT_TELEGRAM_TEMPLATE:
+        delete_setting("telegram_template")  # empty / unchanged = back to the default wording
+        return {"template": DEFAULT_TELEGRAM_TEMPLATE, "is_default": True}
+    set_setting("telegram_template", text)
+    return {"template": text, "is_default": False}
+
+
+@app.post("/settings/telegram/preview")
+def preview_telegram_message(body: TelegramTemplate, current_user: str = Depends(get_current_user)):
+    """Renders the template with sample values so the Settings page can show a live preview."""
+    now = datetime.now()
+    sample = {
+        "species": "Tiger", "location": "Village Edge North", "zone": ZONE_PHRASES["village_edge"],
+        "date": now.strftime("%d %b %Y"), "time": now.strftime("%I:%M %p"),
+        "note": "It has been seen 3 times in the last 6 hours nearby.",
+        "title": DECISION_TITLES["human_wildlife_conflict"],
+        "action": "Warn nearby residents and dispatch a patrol team.",
+    }
+    return {"message": render_telegram_template(body.template or DEFAULT_TELEGRAM_TEMPLATE, sample)}
 
 
 def process_image_for_camera(camera_name: str, image_path: str, original_filename: str):
@@ -1405,7 +1524,7 @@ def process_image_for_camera(camera_name: str, image_path: str, original_filenam
 
         # ---- Telegram: residents only, for HIGH conflict / zone decisions ----
         if telegram_status == "sent":
-            send_telegram_alert(_build_telegram_message(decision, species, display_location, now), annotated_path)
+            send_telegram_alert(_build_telegram_message(decision, species, display_location, now, camera["zone"]), annotated_path)
 
     conn.commit()
     conn.close()

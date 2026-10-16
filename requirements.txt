@@ -1,0 +1,32 @@
+# ForestSentinel backend (FastAPI + YOLO)
+#
+# Setup (Python 3.10 - 3.12 recommended):
+#   python -m venv .venv
+#   source .venv/bin/activate        # Windows: .venv\Scripts\activate
+#   pip install -r requirements.txt
+#   uvicorn app:app --reload
+#
+# Every package pip needs (including PyTorch, OpenCV, NumPy, Starlette, ...) is
+# installed automatically as a dependency of the lines below.
+#
+# Optional - smaller download on a machine WITHOUT an NVIDIA GPU (Linux/Windows):
+# install the CPU-only PyTorch first, then run the command above:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# ---- web API ----
+fastapi==0.143.2
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32        # image uploads + login form
+pydantic==2.14.1
+
+# ---- auth ----
+python-jose[cryptography]==3.5.0
+passlib==1.7.4                  # app uses pbkdf2_sha256, so bcrypt is not needed
+
+# ---- detection model ----
+ultralytics==8.4.178            # pulls in torch, torchvision, opencv, numpy
+pillow==12.3.0
+
+# ---- Telegram alerts, AI assistant (Groq), .env loading ----
+requests==2.34.2
+python-dotenv==1.2.4

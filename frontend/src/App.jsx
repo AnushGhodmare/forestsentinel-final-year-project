@@ -512,6 +512,52 @@ function GlobalTheme() {
       .latest-facts .val { font-size: 15px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
       .latest-decision { border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 6px; }
 
+
+      /* ---------- Decision engine cell ---------- */
+      .dec-cell { display: flex; flex-direction: column; gap: 10px; align-items: stretch; min-width: 0; }
+      .dec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+      .dec-title { font-size: 14.5px; font-weight: 700; line-height: 1.3; }
+      .dec-tag {
+        font-size: 10px; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase;
+        padding: 3px 7px; border: 1px solid var(--border); color: var(--text-muted); white-space: nowrap;
+      }
+      .dec-reasons { margin: 0; padding: 0 0 0 16px; display: flex; flex-direction: column; gap: 5px; }
+      .dec-reasons li { font-size: 13px; font-weight: 400; line-height: 1.45; color: var(--text); }
+      .dec-reasons li::marker { color: var(--accent); }
+      .dec-action {
+        background: var(--accent-soft); border-left: 3px solid var(--accent);
+        padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;
+      }
+      .dec-label { font-size: 9.5px; font-weight: 600; letter-spacing: 0.9px; text-transform: uppercase; color: var(--text-muted); }
+      .dec-action-text { font-size: 13px; font-weight: 600; line-height: 1.4; }
+      .dec-tg { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+      .dec-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); opacity: 0.55; }
+      .dec-tg.sent { color: var(--accent); font-weight: 600; }
+      .dec-tg.sent .dec-dot { background: var(--accent); opacity: 1; }
+      .dec-tg.cooldown .dec-dot { background: #C98A1B; opacity: 1; }
+      .dec-compact .dec-reasons li { font-size: 13.5px; }
+
+      /* ---------- Telegram message editor (Settings) ---------- */
+      .tg-editor {
+        width: 100%; min-height: 150px; resize: vertical; padding: 12px 14px;
+        font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; line-height: 1.5;
+        background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      }
+      .tg-editor:focus { outline: none; border-color: var(--accent); }
+      .tg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px 0; }
+      .tg-chip {
+        font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; cursor: pointer;
+        background: var(--surface); color: var(--accent-dark); border: 1px solid var(--border); padding: 4px 9px;
+      }
+      :root[data-theme="dark"] .tg-chip { color: var(--accent); }
+      .tg-chip:hover { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+      .tg-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+      @media (max-width: 900px) { .tg-grid { grid-template-columns: 1fr; } }
+      .tg-preview {
+        background: var(--accent-soft); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+        padding: 14px 16px; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; min-height: 150px;
+      }
+
       /* ---------- Danger button (Settings -> delete data) ---------- */
       .danger-btn {
         font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 12px; letter-spacing: 0.4px;
@@ -650,9 +696,19 @@ function LoginPage({ onLogin }) {
 function Sidebar({ activePage, setActivePage, onLogout }) {
   const [open, setOpen] = useState(false);
   const [touchMode, setTouchMode] = useState(false);
+  // id = page name used by the router (unchanged); label = short, similar-length text shown in the menu.
+  // Order: monitoring -> tools -> management -> settings.
   const items = [
-    "Dashboard", "Detect Animals", "Today Alerts", "All Alerts", "AI Assistant",
-    "Map View", "Devices", "Users", "Add Camera", "Settings",
+    { id: "Dashboard",      label: "Dashboard" },
+    { id: "Today Alerts",   label: "Recent" },
+    { id: "All Alerts",     label: "History" },
+    { id: "Map View",       label: "Locations" },
+    { id: "Detect Animals", label: "Identify" },
+    { id: "AI Assistant",   label: "Assistant" },
+    { id: "Devices",        label: "Devices" },
+    { id: "Add Camera",     label: "Add Device" },
+    { id: "Users",          label: "Accounts" },
+    { id: "Settings",       label: "Settings" },
   ];
 
   useEffect(() => {
@@ -691,13 +747,13 @@ function Sidebar({ activePage, setActivePage, onLogout }) {
           <div className="sidebar-nav">
             {items.map((item, i) => (
               <div
-                key={item}
-                title={item}
-                className={`sidebar-item ${activePage === item ? "active" : ""}`}
-                onClick={() => { setActivePage(item); setOpen(false); }}
+                key={item.id}
+                title={item.id}
+                className={`sidebar-item ${activePage === item.id ? "active" : ""}`}
+                onClick={() => { setActivePage(item.id); setOpen(false); }}
               >
                 <span className="idx">{String(i + 1).padStart(2, "0")}</span>
-                <span className="label">{item}</span>
+                <span className="label">{item.label}</span>
               </div>
             ))}
           </div>
@@ -1165,10 +1221,7 @@ function Dashboard({ cameras, detections, alerts, cameraLookup, cameraZoneLookup
                 if (!dec) return null;
                 return (
                   <div className="latest-decision">
-                    <span style={{ fontSize: 14.5, fontWeight: 700 }}>{dec.title}</span>
-                    {(dec.reasons || []).map((r, i) => <span key={i} style={{ fontSize: 13.5, lineHeight: 1.45 }}>{r}</span>)}
-                    <span style={{ fontSize: 13.5, fontWeight: 600 }}>Action: {dec.action}</span>
-                    <span style={{ fontSize: 12.5, fontWeight: 500 }}>{telegramLabel(dec.telegram)}</span>
+                    <DecisionCell dec={dec} compact />
                   </div>
                 );
               })()}
@@ -1266,6 +1319,44 @@ const telegramLabel = (status) =>
   status === "sent" ? "Residents alerted on Telegram"
   : status === "cooldown" ? "Residents already alerted recently"
   : "Dashboard only";
+
+// One tidy block for a decision: title, bulleted reasons, highlighted action, Telegram status.
+const DECISION_TAG = {
+  human_wildlife_conflict: "For residents",
+  zone_risk: "For residents",
+  suspicious_human_activity: "For officials",
+  possible_injury: "For officials",
+  unusual_activity: "For officials",
+};
+
+function DecisionCell({ dec, compact = false }) {
+  if (!dec) return <span style={{ color: "var(--text-muted)", fontSize: 13 }}>No decision recorded (older alert)</span>;
+  const tag = DECISION_TAG[dec.decision_type];
+  const reasons = dec.reasons || [];
+  return (
+    <div className={`dec-cell${compact ? " dec-compact" : ""}`}>
+      <div className="dec-head">
+        <span className="dec-title">{dec.title}</span>
+        {tag && <span className="dec-tag">{tag}</span>}
+      </div>
+      {reasons.length > 0 && (
+        <ul className="dec-reasons">
+          {reasons.map((r, i) => <li key={i}>{r}</li>)}
+        </ul>
+      )}
+      {dec.action && (
+        <div className="dec-action">
+          <span className="dec-label">Recommended action</span>
+          <span className="dec-action-text">{dec.action}</span>
+        </div>
+      )}
+      <div className={`dec-tg ${dec.telegram || "none"}`}>
+        <span className="dec-dot" />
+        {telegramLabel(dec.telegram)}
+      </div>
+    </div>
+  );
+}
 
 function AlertsPage({ alerts, title, detections, cameraLookup, cameraZoneLookup, cameraLocationLookup, decisionByDetection, cameras, onViewImage }) {
   const [filterType, setFilterType] = useState("all");
@@ -1941,6 +2032,73 @@ function Settings({ theme, toggleTheme, token, onDataCleared }) {
   const [maxDelay, setMaxDelay] = useState(20);
   const [savedMsg, setSavedMsg] = useState("");
 
+  // ---- Telegram message editor ----
+  const [tgTemplate, setTgTemplate] = useState("");
+  const [tgSaved, setTgSaved] = useState("");        // what is currently stored on the server
+  const [tgDefault, setTgDefault] = useState("");
+  const [tgPlaceholders, setTgPlaceholders] = useState({});
+  const [tgMax, setTgMax] = useState(1500);
+  const [tgPreview, setTgPreview] = useState("");
+  const [tgMsg, setTgMsg] = useState("");
+  const [tgOk, setTgOk] = useState(true);
+  const [tgBusy, setTgBusy] = useState(false);
+  const tgRef = useRef(null);
+  const authHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+  useEffect(() => {
+    fetch(`${API_URL}/settings/telegram`, { headers: authHeaders })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        setTgTemplate(d.template); setTgSaved(d.template); setTgDefault(d.default_template);
+        setTgPlaceholders(d.placeholders || {}); setTgMax(d.max_length || 1500);
+      })
+      .catch(() => setTgMsg("Could not load the saved message."));
+  }, []);
+
+  // live preview (rendered by the backend so it matches what is actually sent)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      fetch(`${API_URL}/settings/telegram/preview`, {
+        method: "POST", headers: authHeaders, body: JSON.stringify({ template: tgTemplate }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setTgPreview(d.message); })
+        .catch(() => {});
+    }, 350);
+    return () => clearTimeout(t);
+  }, [tgTemplate]);
+
+  const insertPlaceholder = (name) => {
+    const el = tgRef.current;
+    const tag = `{${name}}`;
+    if (!el) { setTgTemplate((t) => t + tag); return; }
+    const start = el.selectionStart ?? tgTemplate.length;
+    const end = el.selectionEnd ?? tgTemplate.length;
+    setTgTemplate(tgTemplate.slice(0, start) + tag + tgTemplate.slice(end));
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(start + tag.length, start + tag.length); });
+  };
+
+  const saveTelegram = async (text) => {
+    setTgBusy(true); setTgMsg("");
+    try {
+      const res = await fetch(`${API_URL}/settings/telegram`, {
+        method: "PUT", headers: authHeaders, body: JSON.stringify({ template: text }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setTgTemplate(d.template); setTgSaved(d.template); setTgOk(true);
+        setTgMsg(d.is_default ? "Using the default message." : "Saved — the next Telegram alert will use this message.");
+      } else {
+        setTgOk(false); setTgMsg((typeof d.detail === "string" && d.detail) || "Could not save the message.");
+      }
+    } catch {
+      setTgOk(false); setTgMsg("Could not reach the server.");
+    } finally {
+      setTgBusy(false);
+    }
+  };
+
   const checkStatus = async () => {
     try {
       const res = await fetch(`${API_URL}/simulate/status`, {
@@ -2099,6 +2257,50 @@ function Settings({ theme, toggleTheme, token, onDataCleared }) {
         </div>
       </div>
 
+      <div className="panel">
+        <h3>Telegram Alert Message</h3>
+        <p style={{ fontSize: 14.5, color: "var(--text-muted)", marginBottom: 14 }}>
+          Write the message residents receive on Telegram when a high-risk alert is sent. Click a field below to
+          drop it in at your cursor — it is replaced with real details for each alert. Lines whose fields come out
+          empty are skipped automatically.
+        </p>
+        <div className="tg-grid">
+          <div>
+            <textarea
+              ref={tgRef} className="tg-editor" value={tgTemplate} maxLength={tgMax}
+              onChange={(e) => setTgTemplate(e.target.value)}
+              placeholder="Type your alert message..."
+            />
+            <div className="tg-chips">
+              {Object.entries(tgPlaceholders).map(([name, hint]) => (
+                <button key={name} type="button" className="tg-chip" title={hint} onClick={() => insertPlaceholder(name)}>
+                  {`{${name}}`}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <button type="button" className="view-btn" disabled={tgBusy || tgTemplate === tgSaved || !tgTemplate.trim()} onClick={() => saveTelegram(tgTemplate)}>
+                {tgBusy ? "Saving..." : "Save Message"}
+              </button>
+              <button type="button" className="gmaps-link" disabled={tgBusy || (tgTemplate === tgDefault && tgSaved === tgDefault)} onClick={() => { setTgTemplate(tgDefault); saveTelegram(""); }}>
+                Reset to Default
+              </button>
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-muted)" }}>{tgTemplate.length}/{tgMax}</span>
+            </div>
+            {tgMsg && <p style={{ fontSize: 13.5, marginTop: 10, color: tgOk ? "#2E7D46" : "#A3260F" }}>{tgMsg}</p>}
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.8px", color: "var(--text-muted)", marginBottom: 8 }}>
+              Preview (sample data)
+            </div>
+            <div className="tg-preview">{tgPreview || "—"}</div>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>
+              The evidence photo is still sent right after this message.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="panel" style={{ borderColor: "#A3260F" }}>
         <h3>Data Management</h3>
         <p style={{ fontSize: 14.5, color: "var(--text-muted)", marginBottom: 14 }}>
@@ -2221,7 +2423,7 @@ function AlertsTable({ alerts, detections, cameraLocationLookup, cameraZoneLooku
           <th>Time</th>
           <th>Location</th>
           <th>Zone &amp; Alert Type</th>
-          <th style={{ minWidth: 300 }}>Decision Engine</th>
+          <th style={{ minWidth: 340 }}>Decision Engine</th>
         </tr>
       </thead>
       <tbody>
@@ -2247,19 +2449,8 @@ function AlertsTable({ alerts, detections, cameraLocationLookup, cameraZoneLooku
                   </span>
                 </div>
               </td>
-              <td>
-                {dec ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-                    <span style={{ fontWeight: 700 }}>{dec.title}</span>
-                    {(dec.reasons || []).map((r, i) => (
-                      <span key={i} style={{ fontSize: 13.5, fontWeight: 400, lineHeight: 1.45 }}>{r}</span>
-                    ))}
-                    <span style={{ fontSize: 13.5, fontWeight: 600 }}>Action: {dec.action}</span>
-                    <span style={{ fontSize: 12.5, fontWeight: 500 }}>{telegramLabel(dec.telegram)}</span>
-                  </div>
-                ) : (
-                  <span>No decision recorded (older alert)</span>
-                )}
+              <td style={{ verticalAlign: "top" }}>
+                <DecisionCell dec={dec} />
               </td>
             </tr>
           );
