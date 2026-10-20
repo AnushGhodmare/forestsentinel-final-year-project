@@ -21,6 +21,16 @@ Forest-edge villages live alongside tigers, leopards, elephants and bears. A cam
 
 **ForestSentinel** detects animals in camera-trap images with a YOLO model, then runs every sighting through a rule-based **decision engine** that considers the species, the camera's zone, the time of day and the recent sighting history. High-risk events trigger a **Telegram alert with the photo** to nearby residents, and everything lands on a live dashboard for forest officials.
 
+## Screenshots
+
+| Dashboard | Decision engine |
+|-----------|-----------------|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Alerts](docs/screenshots/alerts.png) |
+
+| Telegram message editor | Camera map |
+|-------------------------|------------|
+| ![Settings](docs/screenshots/settings.png) | ![Map](docs/screenshots/map.png) |
+
 ## Features
 
 - **Animal detection**: YOLO (Ultralytics) model loaded once at startup, annotated evidence photos saved for every sighting.
