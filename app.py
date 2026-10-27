@@ -87,10 +87,12 @@ app = FastAPI(title="Wildlife Monitoring API")
 
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://YOUR-ACTUAL-VERCEL-DOMAIN"
+        "https://forestsentinel-final-year-project.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
