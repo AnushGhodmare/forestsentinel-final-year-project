@@ -89,15 +89,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.middleware.cors import CORSMiddleware
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://forestsentinel-final-year-project.vercel.app"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+allow_origins=[
+    "https://forestsentinel-final-year-project-o9omv3mh1-anush17.vercel.app",
+    "https://forestsentinel-final-year-project.vercel.app",
+],
 
 app.add_middleware(
     CORSMiddleware,
