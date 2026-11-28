@@ -180,7 +180,7 @@ Issues and pull requests are welcome. If you tune the decision-engine thresholds
 
 ## License
 
-Add a license of your choice (for example MIT) as a `LICENSE` file and name it here.
+This project is licensed under the MIT License. See the LICENSE file for details.
 
 ---
 

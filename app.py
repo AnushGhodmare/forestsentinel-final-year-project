@@ -1,17 +1,3 @@
-"""
-DAY 3 - Detection Endpoint
-----------------------------------
-This replaces your Day 2 app.py. Everything from Day 2 (database, auth,
-cameras) is still here, unchanged - this just adds:
-  1. Loading best.pt once when the server starts (not per-request - fast)
-  2. A /detect endpoint: give it a camera name + image, it runs YOLO,
-     saves the result to the detections table, and saves the image as evidence
-  3. An "evidence" folder where processed images get copied to
-
-Run with:  uvicorn app:app --reload
-Docs page: http://127.0.0.1:8000/docs
-"""
-
 import sqlite3
 import os
 import re
@@ -99,9 +85,18 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 app = FastAPI(title="Wildlife Monitoring API")
 
+from fastapi.middleware.cors import CORSMiddleware
+
+
+from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://forestsentinel-final-year-project-o9omv3mh1-anush17.vercel.app",
+        "https://forestsentinel-final-year-project.vercel.app",
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
