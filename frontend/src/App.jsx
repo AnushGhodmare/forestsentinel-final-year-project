@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 // ---------------- GLOBAL THEME ----------------
 function GlobalTheme() {
@@ -1644,10 +1644,10 @@ function MapView({ cameras, focusCameraId }) {
       attribution: "&copy; OpenStreetMap contributors",
     });
 
-    satellite.addTo(map);
+    street.addTo(map); // Street view is the default; Satellite stays available in the layer control
     placeLabels.addTo(map);
     window.L.control.layers(
-      { "Satellite": satellite, "Street": street },
+      { "Street": street, "Satellite": satellite },
       { "Place Labels": placeLabels }
     ).addTo(map);
 
